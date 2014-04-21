@@ -2,6 +2,7 @@ import sys
 import pygame
 from pygame.locals import *
 from classes import *
+from events import *
 
 pygame.init()
 img = pygame.image.load("Sprites/BBS.png")
@@ -26,28 +27,7 @@ while 1:
     
     for event in pygame.event.get():    # On vérifie chacun des nouveaux évènements (cette fonction purge la liste d'évènement à chaque appel)
 
-        # On quitte le jeu si l'utilisateur ferme la fenêtre, ou s'il appuie sur ECHAP ou ALT+F4
-        if (event.type == QUIT) or (event.type == KEYDOWN and (event.key == K_ESCAPE or event.key == KMOD_LALT|K_F4)):
-            pygame.draw.rect(fenetre, (0,0,255), (100, 100, 600, 400))
-            while 1:
-                pygame.display.flip()
-                for event in pygame.event.get():    # On vérifie chacun des nouveaux évènements (cette fonction purge la liste d'évènement à chaque appel)
-
-                        # On quitte le jeu si l'utilisateur ferme la fenêtre, ou s'il appuie sur ECHAP ou ALT+F4
-                        if (event.type == KEYDOWN and event.key == KMOD_LALT|K_F4):
-
-                            pygame.quit()
-                            sys.exit()
-        elif event.type == KEYDOWN and event.key == K_F11:
-            pygame.display.toggle_fullscreen()
-            print("togle!!!")
-            
-            if fullscreen == 0:
-                fenetre = pygame.display.set_mode((800, 600), FULLSCREEN|HWSURFACE|DOUBLEBUF)
-            else:
-                fenetre = pygame.display.set_mode((800, 600))
-            fullscreen = 1 - fullscreen
-        # TODO: Fenêtre pop-up de confirmation
+        permanent_events(fenetre, event)
 
     keys_pressed = pygame.key.get_pressed()  # On récupère une liste de toutes les touches pressées
     directional_keys = [K_UP, K_DOWN, K_LEFT, K_RIGHT]

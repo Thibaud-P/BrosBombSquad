@@ -15,17 +15,6 @@
 import pygame
 from pygame.locals import *
 
-class Window(window, rect)
-
-class Button:
-
-    def __init__(self,window,text,rect):
-        self.rect = rect
-
-    def hoover():
-
-    def clicked():
-
 class Niveau:
 
     def __init__(self, fenetre, numNiveau):
