@@ -1,4 +1,4 @@
-#################### events.py ###################
+################### events.py ####################
 ##                                              ##
 ## This file contain functions which will be    ##
 ## used to detect all the differents events     ##
@@ -10,66 +10,37 @@
 ##                                              ##
 ##################################################
 
-import pygame
+import pygame, sys, os
 from pygame.locals import *
+from constants import *
 
-# permanent_events(event): handle events that we always want to handle, like if the user want to quit or toggle fullscreen
-#                          traite les évènements que nous voulons toujours traiter, comme lorsque l'utilisateur veut quitter ou basculer en plein écran
+def checkEvents(inGame):
 
-def permanent_events(window, event):
+    """
+    Handle keyboard events in order to quit the program and toggle fullscreen
+    Prend en charge les évènement clavier afin de quitter le programme et activer ou désactiver le plein écran
+    """
 
-    # If the user try to close the program hitting ESCAPE, ALT-F4 or by pressing the window's close button, ask for confirmation and close or resume
-    # Si l'utilisateur cherche à fermer le programme en appuyant sur ECHAP, ALT-F4 ou sur le boutton de fermeture de la fenêtre, demander confirmation puis fermer ou continuer
-    if (event.type == QUIT) or (event.type == KEYDOWN and (event.key == K_ESCAPE or event.key == KMOD_LALT|K_F4)):
-        
-        ## TODO: Draw the message box, Save program's state
-        while 1:
-            
-            for event in pygame.event.get():
-                
-                # If he put his mouse on the yes button, change the button's apparence
-                # S'il passe sa souris sur le boutton oui, changer l'apparence du boutton
-                if (event.type == MOUSEMOTION
-                    and (event.pos[0] >= yes_button.rect[0] and event.pos[0] <= (yes_button.rect[0] +yes_button.rect[3]))
-                    and (event.pos[1] >= yes_button.rect[1] and event.pos[1] <= (yes_button.rect[1] +yes_button.rect[4]))):
+    for event in pygame.event.get():
 
-                    yes_button.hoover()
-                    
-                # If he put his mouse on the no button, change the button's apparence
-                # S'il passe sa souris sur le boutton non, changer l'apparence du boutton
-                if (event.type == MOUSEMOTION
-                    and (event.pos[0] >= no_button.rect[0] and event.pos[0] <= (no_button.rect[0] + no_button.rect[3]))
-                    and (event.pos[1] >= no_button.rect[1] and event.pos[1] <= (no_button.rect[1] + no_button.rect[4]))):
+        if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
 
-                    no_button.hoover()
-                    
-                # If he hit again ALT-F4, or if he confirms (press on yes button), then exit
-                # S'il appuie encore une fois sur ALT-F4, ou s'il confirme (appuie sur le boutton oui), alors quitter
-                if ((event.type == KEYDOWN and event.key == KMOD_LALT|K_F4)
-                    or (event.type == MOUSEBUTTONDOWN
-                        and (event.pos[0] >= yes_button.rect[0] and event.pos[0] <= (yes_button.rect[0] +yes_button.rect[3]))
-                        and (event.pos[1] >= yes_button.rect[1] and event.pos[1] <= (yes_button.rect[1] +yes_button.rect[4])))):
+            if inGame:
 
-                    pygame.quit()
-                    sys.exit()
-                    
-                # If he doesn't confirm, then resume
-                # S'il ne confirme pas, alors revenir au programme
-                if (event.type == MOUSEBUTTONDOWN
-                    and (event.pos[0] >= no_button.rect[0] and event.pos[0] <= (no_button.rect[0] + no_button.rect[3]))
-                    and (event.pos[1] >= no_button.rect[1] and event.pos[1] <= (no_button.rect[1] + no_button.rect[4]))):
+                pass
 
-                    pass
+                ## TODO: Pause and fade the game, draw box with options, resume and main menu  
 
-                    ## TODO: Clear the message box, Restaure program's state
+            else:
 
-            pygame.display.flip()
+                pygame.quit()
+                sys.exit()
 
-    # If the user hit F11, switch to fullscreen
-    # Si l'utilisateur appuie sur F11, basculer en plein écran
-    elif event.type == KEYDOWN and event.key == K_F11:
-        
-        pygame.display.set_mode((800,600), window.get_flags()^FULLSCREEN,)
+        elif event.type == KEYDOWN and event.key == KMOD_LALT|K_F4:
 
-from main2 import *
+            pygame.quit()
+            sys.exit()
 
+        elif event.type == KEYDOWN and event.key == K_F11:
+
+            pygame.display.set_mode(WINDOW_RES, window.get_flags()^FULLSCREEN)
