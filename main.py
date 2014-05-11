@@ -1,60 +1,76 @@
-import sys
-import pygame
+#################### main.py #####################
+##                                              ##
+## This file launch the differents steps of the ##
+## game. It's the file you will have to launch  ##
+## in order to launch the game                  ##
+##                                              ##
+## Ce fichier lance les différentes étapes du   ##
+## jeu. C'est le fichier que vous devez         ##
+## exécuter pour lancer le jeu                  ##
+##                                              ##
+##################################################
+
+import pygame, sys, os
 from pygame.locals import *
 from classes import *
-from events import *
+from config import *
 
-pygame.init()
-img = pygame.image.load("Sprites/BBS.png")
-pygame.display.set_icon(img)
-fenetre = pygame.display.set_mode((800, 600))
-pygame.display.set_caption("Bros Bomb Squad", "BBS")
-
-niveau = Niveau(fenetre, 1)
-niveau.afficher(fenetre)
-bomberman = Personnage(1, "Bomberman", niveau)
-bomberman.afficher(fenetre)
-pygame.display.flip()
-pygame.event.set_grab(False)
-key1 = key2 = 0
-pygame.display.flip()
-fullscreen = 0
-
-
-# Boucle de traitement des évènements
-
-while 1:
+def init():
+    """
+    Initialize pygame, the program's window, the buffer and he clock to limit fps
+    Initialise pygame, la fenêtre de programme, le buffer et l'horloge pour limiter les fps
+    """
     
-    for event in pygame.event.get():    # On vérifie chacun des nouveaux évènements (cette fonction purge la liste d'évènement à chaque appel)
+    pygame.init()
 
-        permanent_events(fenetre, event)
+    pygame.display.set_icon(pygame.image.load(WINDOW_ICON_PATH))
+    pygame.display.set_caption(WINDOW_CAPTION)
+    global window
+    window = pygame.display.set_mode(WINDOW_RES, WINDOW_FLAGS)
+    global clock
+    clock = pygame.time.Clock()
 
-    keys_pressed = pygame.key.get_pressed()  # On récupère une liste de toutes les touches pressées
-    directional_keys = [K_UP, K_DOWN, K_LEFT, K_RIGHT]
 
-    # Selon les touches pressées, on actualise key1 et key2
-    for key in directional_keys:
-        if keys_pressed[key]:
-            if key1 == 0:
-                key1 = key
-            elif key1 != key and key2 == 0:
-                key2 = key
-        else:
-            if key1 == key:
-                key1, key2 = key2, 0
-            if key2 == key:
-                key2 = 0
+def checkEvents(inGame):
+    """
+    Handle keyboard events in order to quit the program and toggle fullscreen
+    Prend en charge les évènement clavier afin de quitter le programme et activer ou désactiver le plein écran
+    """
+
+    for event in pygame.event.get():
+
+        if event.type == QUIT or (event.type == KEYDOWN and (event.key == K_ESCAPE or event.key == KMOD_LALT|K_F4)):
+
+            pygame.quit()
+            sys.exit()
+            
+        elif event.type == KEYDOWN and event.key == K_F11:
+
+            pygame.display.set_mode(WINDOW_RES, window.get_flags()^FULLSCREEN)
+            level.repaint_rect(window.get_rect())
+
     
-    if key2 != 0:
-        pass
-        #bomberman.direction = key2
-        #bomberman.deplacer(key1, key2)
-    elif key1 != 0:
-        pass
-        #bomberman.direction = key1
-        #bomberman.deplacer(key1, key2)
+def main():
 
-    niveau.afficher(fenetre)
-    bomberman.afficher(fenetre)
-    pygame.display.flip()
+    init()
 
+    ## TODO: MENU
+    
+    numLevel = 1
+    numPlayer = 1
+    inGame = True
+    global level
+    level = Level(window, numLevel)
+    bombers = Bombers(window, level, numPlayer)
+
+    # Boucle de traitement des évènements
+    while inGame:
+
+        checkEvents(inGame)
+        bombers.action(level)
+        level.update()
+        rectlist = level.draw(window) + bombers.draw(window)
+        pygame.display.update(rectlist)
+        clock.tick_busy_loop(60)
+
+main()
