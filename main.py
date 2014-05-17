@@ -37,9 +37,7 @@ def checkEvents(window, level, inGame):
     Handle keyboard events in order to quit the program and toggle fullscreen
     Prend en charge les évènement clavier afin de quitter le programme et activer ou désactiver le plein écran
     """
-
-    test = 0
-
+    
     # We take the events in the queue one by one
     # On prend les évènements dans la queue un par un
     for event in pygame.event.get():
@@ -59,12 +57,6 @@ def checkEvents(window, level, inGame):
             # Comme la fenêtre a changée, on réaffiche le niveau sur la surface de la fenêtre
             level.repaint_rect(window.get_rect())
 
-        elif event.type == KEYDOWN and event.key == K_F1:
-
-            test = 1
-
-    return(test)
-
     
 def main():
     """
@@ -78,11 +70,12 @@ def main():
     # On charge et lance la musique, et on la fait se répéter indéfiniment avec loops = -1
     pygame.mixer.music.load(os.path.join("Sounds", "GameMusic.mp3"))
     pygame.mixer.music.play(loops = -1)
+    pygame.mixer.music.set_volume(0.2)
 
     ## TODO: MENU
     
     numLevel = 1
-    numPlayers = 1
+    numPlayers = 2
     inGame = True
     test = True
     
@@ -114,12 +107,6 @@ def main():
         # On limite l'exécution de cette boucle à 60Hz pour coller avec la fréquence de rafraîchissement de l'écran
         #   Clock.tick_busy_loop() donne une fréquence très stable mais utilise plus de temps CPU que Clock.tick()
         clock.tick_busy_loop(60)
-
-        if test:
-
-            for i in range(level.width):
-
-                print(i, level.itemTable[i][1])
 
         
 if __name__ == "__main__":

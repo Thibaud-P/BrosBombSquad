@@ -1,14 +1,12 @@
 ################### classes.py ###################
 ##                                              ##
 ## This file contain classes wich will be used  ##
-## to create UI objects such as windows,        ##
-## buttons, and game objects such as maps or    ##
-## characters                                   ##
+##  to create game objects such as maps or      ##
+##  characters                                  ##
 ##                                              ##
 ## Ce fichier contient les classes utilisées    ##
-## pour créer les objets d'interface comme les  ##
-## fenêtres, les buttons, et les objets du jeu  ##
-## comme les maps ou les personnages            ##
+##  pour créer les objets du jeu comme les maps ##
+##  ou les personnages                          ##
 ##                                              ##
 ##################################################
 
@@ -417,6 +415,8 @@ class Bonus(pygame.sprite.DirtySprite):
                 for animPos in range(2):
 
                     Bonus.sprites[nameNum][animPos] = pygame.image.load(os.path.join("Pictures", "Bonus", name + str(animPos) + ".png")).convert()
+
+            Bonus.sound = pygame.mixer.Sound(os.path.join("Sounds", "Bonus.wav"))
                     
         # See Bomb()
         # Cf. Bomb()
@@ -455,6 +455,7 @@ class Bonus(pygame.sprite.DirtySprite):
 
         level.itemTable[self.posX][self.posY] = Ground()
         self.kill()
+        self.sound.play()
 
         return(self.type)
     
@@ -470,7 +471,7 @@ class Player(pygame.sprite.DirtySprite):
         
         # See Bomb()
         # Cf. Bomb()
-        if Player.deathSound = None:
+        if Player.deathSound == None:
 
             Player.deathSound = pygame.mixer.Sound(os.path.join("Sounds", "Death.wav"))
 
@@ -506,12 +507,13 @@ class Player(pygame.sprite.DirtySprite):
         # Pos représente les coordonnées du tableau et screenPos et lastScreenPos les coordonnées sur l'écran
         self.posX = spawn[0]
         self.posY = spawn[1]
-        self.lastScreenPosX = self.screenPosX = float(SPRITE_SIZE*self.posX)
-        self.lastScreenPosY = self.screenPosY = float(SPRITE_SIZE*(self.posY+1))
+        self.screenPosX = float(SPRITE_SIZE*self.posX)
+        self.screenPosY = float(SPRITE_SIZE*(self.posY+1))
         self.image = self.sprites[self.spriteDir][self.spritePos]
         self.rect = self.image.get_rect()
         self.rect.bottomleft =(self.screenPosX, self.screenPosY)
         self.alive = True
+        self.dirty = 2
         
     # Update the player's sprite, react to keys pressed, check death... once per frame because dirty = 2
     # Mise à jour du sprite du joueur, réaction au touches pressées, vérifier la mort... Une fois par tour de boucle dejeu car dirty = 2
@@ -519,57 +521,77 @@ class Player(pygame.sprite.DirtySprite):
 
         # If the player is alive...
         # Si le joueur est vivant...
-        if alive:
+        if self.alive:
 
             self.checkBox(level)
 
             # If the player is human
             # Si le joueur est humain
             if not self.ia:
-                
-                keyPressed = pygame.keys.get_pressed()
+
+                # Check the key pressed and update the player's caracteristics
+                # Vérifier les touches pressées et mettre à jour les caractéristiques du joueur
+                keyPressed = pygame.key.get_pressed()
                 self.checkBombDrop(level, keyPressed)
                 self.setDirection(level, keyPressed)
-                
-                # Move 
-                if self.moving:
-                                          
-                    
 
-                    if self.lastScreenPosX // SPRITE_SIZE != self.screenPosX // SPRITE_SIZE or self.lastScreenPosY // SPRITE_SIZE != self.screenPosY // SPRITE_SIZE:
+                if self.moving:
+
+                    # Update the screen position depending on the speed and the direction
+                    # Mettre à jour la postion sur l'écran en fonction de la vitesse et de la direction
+                    self.screenPosX += float(self.direction[0]*self.speed)
+                    self.screenPosY += float(self.direction[1]*self.speed)          
+                    self.rect.bottomleft = int(self.screenPosX), int(self.screenPosY)
+                    # Change the layer, so the more the player is at the bottom, the more he will be on the top after the blitting
+                    # Change la profondeur, pour que les joueurs les plus en bas soient les plus en avant lors de l'affichage
+                    level.change_layer(self, self.rect.bottom)
+                    # Update posX and posY to fit closer to the screen position
+                    # Met à jour posX et posY pour correspondre au plus près à la position sur l'écran
+                    self.posX = int(self.screenPosX / SPRITE_SIZE + 0.5)
+                    self.posY = int(self.screenPosY / SPRITE_SIZE + 0.5) - 1
+                    self.setSpritePos()
+
+                    # When we detect that we changed of box, we end the movement to be able to change direction
+                    # Quand on détecte que l'on a changé de case, on met fin au mouvement to pouvoir changer la direction
+                    endMov = False
+                    
+                    if (self.direction == DOWN or self.direction == UP) and (self.screenPosY // SPRITE_SIZE) != ((self.screenPosY - self.speed) // SPRITE_SIZE):
+
+                        endMov = True
+
+                    elif (self.direction == RIGHT or self.direction == LEFT) and (self.screenPosX // SPRITE_SIZE) != ((self.screenPosX - self.speed) // SPRITE_SIZE):
+
+                        endMov = True
+
+                    if endMov:
 
                         self.moving = False
                         self.spritePos = 0
+                        # Not needed
+                        # Pas indispensable
                         self.posX = int(self.screenPosX // SPRITE_SIZE)
-                        self.posY = int(self.screenPosY // SPRITE_SIZE)
-
-                else:
-
-
-                    testMovement(level,)
+                        self.posY = int(self.screenPosY // SPRITE_SIZE) - 1
                         
-                self.set_move(level)
-                self.checkBox(level)
-
-                self.lastScreenPosX = self.screenPosX
-                self.lastScreenPosY = self.screenPosY 
-
-                self.move(level)
-                
+                self.setSpriteDir()
+                self.image = self.sprites[self.spriteDir][self.spritePos]
 
             # If it's an IA
             # Si c'est une IA
             else:
-                
+
+                # TODO: IA
                 pass
                 
         # ...And if he's dead
         # ...Et s'il est mort
         else:
 
+            self.kill()
             # TODO: Play death anim
             pass
-
+            
+    # Check events determined by what's in the box
+    # Vérifie des évènement déterminés par ce qu'il y a dans la case
     def checkBox(self, level):
 
         box = level.itemTable[self.posX][self.posY]
@@ -596,17 +618,21 @@ class Player(pygame.sprite.DirtySprite):
 
         # If there is an explosion, then you're dead!
         # S'il y a une explosion, vous êtes mort!
-        elif box.item == EXPLOSION:
+        elif box.item == EXPLOSION and self.num == 0:
 
             self.alive = False
             self.deathSound.play()
 
+    # Drop a bomb if possible
+    # Pose une bombe s'il le peut
     def checkBombDrop(self, level, keyPressed):
 
         # If the player pressed the bomb drop key, if the player droped not too many bombs and the box is empty, then drop bomb
         # Si le joueur appuye sur la touche pour poser une bombe, qu'il n'en a pas posé trop et que la case est libre, alors poser une bombe
         if keyPressed[KEYS[self.num][4]]:
             
+            bombX = int((self.screenPosX + self.getOffset()[0]) / SPRITE_SIZE)
+            bombY = int((self.screenPosY + self.getOffset()[1]) / SPRITE_SIZE)
             bombX = self.posX
             bombY = self.posY
             
@@ -615,14 +641,15 @@ class Player(pygame.sprite.DirtySprite):
                 # Update the group sprites, the item table. Don't mind the layer, it will be used one day but is useless now
                 # Met à jour le groupe de sprite et le tableau d'objets. Ne faites pas attention au layer, il est inutile pour l'instant
                 bomb = Bomb(self)
-                level.add(bomb, layer = level.height - bombY)
+                level.add(bomb, layer = bombY)
                 level.itemTable[bombX][bombY] = bomb
                 # Update bombs droped simultanously by the player
                 # Mise à jour le nombre de bombes posée simultanément par le joueur
                 self.bombs += 1
 
-
-    def checkMovement(self, level, direction):
+    # Check whether the player can move in this direction or not
+    # Vérifie si le joueur peut bouger dans la direction
+    def checkDirection(self, level, direction):
 
         # If there is something in the next box that the player can't pass trough (item >= 3), the player can't go on it
         # S'il y a quelque chose dans la prochaine case et que le joueur ne peut pas passer à travers (item >=3), alors il ne peut pas y aller
@@ -633,27 +660,26 @@ class Player(pygame.sprite.DirtySprite):
         else:
 
             return(True)
-        
 
     def setDirection(self, level, keyPressed):
 
         # If the player is moving, so between two boxes, he can only reverse his movement if there is nothing he can't pass through in the box he left
-        # Si le joueur est en mouvement, donc entre deux cases, il peut seulement inverser son mouvement si'il n'y a rien en dur dans la case qu'il a quitté
+        # Si le joueur est en mouvement, donc entre deux cases, il peut seulement inverser son mouvement s'il n'y a rien en dur dans la case qu'il a quitté
         if self.moving:
             
-            if self.direction == RIGHT and keyPressed[KEYS[self.num][2]] and level.itemTable[self.posX - self.direction[0]][self.posY - self.direction[1]] <= 3:
-                
+            if self.direction == RIGHT and keyPressed[KEYS[self.num][2]]:# and self.checkDirection(level, LEFT):
+            
                 self.direction = LEFT
                 
-            elif self.direction == LEFT and keyPressed[KEYS[self.num][3]] and level.itemTable[self.posX - self.direction[0]][self.posY - self.direction[1]] <= 3:
+            elif self.direction == LEFT and keyPressed[KEYS[self.num][3]]:# and self.checkDirection(level, RIGHT):
                     
                 self.direction = RIGHT
                     
-            elif self.direction == UP and keyPressed[KEYS[self.num][1]] and level.itemTable[self.posX - self.direction[0]][self.posY - self.direction[1]] <= 3:
+            elif self.direction == UP and keyPressed[KEYS[self.num][1]]:# and self.checkDirection(level, DOWN):
                     
                 self.direction = DOWN
                     
-            elif self.direction == DOWN and keyPressed[KEYS[self.num][0]] and level.itemTable[self.posX - self.direction[0]][self.posY - self.direction[1]] <= 3:
+            elif self.direction == DOWN and keyPressed[KEYS[self.num][0]]:# and self.checkDirection(level, UP):
                     
                 self.direction = UP
 
@@ -676,119 +702,106 @@ class Player(pygame.sprite.DirtySprite):
             else:
                 
                 dirX = -1
+                
+            # Same thing on Y axis
+            # Même chose sur l'axe Y
+            if (keyPressed[KEYS[self.num][0]] and keyPressed[KEYS[self.num][1]]) or ((not keyPressed[KEYS[self.num][0]]) and (not keyPressed[KEYS[self.num][1]])):
+
+                dirY = 0
+
+            elif keyPressed[KEYS[self.num][1]]:
+
+                dirY = 1
+
+            else:
+
+                dirY = -1
+
+            # We try to update the direction, and first try with the direction different from the current
+            # On essaye de mettre à jour la direction, et on essaye d'abord avec les directions différentes de l'actuelle
+            if self.direction[0] == 0 and dirX != 0:
+                
+                self.direction = (dirX, 0)
+                # The player will move only if he can
+                # Le joueur va bouger uniquement s'il le peut
+                self.moving = self.checkDirection(level, self.direction)
+
+            elif self.direction[1] == 0 and dirY != 0:
+                
+                self.direction = (0, dirY)
+                self.moving = self.checkDirection(level, self.direction)
+
+            elif dirX != 0:
+                
+                self.direction = (dirX, 0)                
+                self.moving = self.checkDirection(level, self.direction)
                     
-                if (keyPressed[KEYS[self.num][0]] and keyPressed[KEYS[self.num][1]]) or ((not keyPressed[KEYS[self.num][0]]) and (not keyPressed[KEYS[self.num][1]])):
-                    dirY = 0
-                elif keyPressed[KEYS[self.num][1]]:
-                    dirY = 1
-                else:
-                    dirY = -1
+            elif dirY != 0:
+                
+                self.direction = (0, dirY)
+                self.moving = self.checkDirection(level, self.direction)
 
-
-
-                        
-                if self.direction[0] == 0 and dirX != 0:
-                    self.direction = (dirX, 0)
-                    self.dirty = 1
-                    if self.test_move(level, self.direction):
-                        self.moving = True
-
-                elif self.direction[1] == 0 and dirY != 0:
-                    self.direction = (0, dirY)
-                    self.dirty = 1
-                    if self.test_move(level, self.direction):
-                        self.moving = True
-
-                elif dirX != 0:# and level.itemTable[self.posX+dirX][self.posY].item < 3:
-                    self.direction = (dirX, 0)
-                    self.dirty = 1
-                    if self.test_move(level, self.direction):
-                        self.moving = True
-                    
-                elif dirY != 0:# and level.itemTable[self.posX+dirX][self.posY].item < 3:
-                    self.direction = (0, dirY)
-                    self.dirty = 1
-                    if self.test_move(level, self.direction):
-                        self.moving = True
-                    
-        
-    def move(self, level):
-
-        if self.dirty:
-
-            self.set_spriteDir()
-            
-            if self.moving:
-
-                self.screenPosX += float(self.direction[0]*self.speed)
-                self.screenPosY += float(self.direction[1]*self.speed)          
-                self.rect.bottomleft = int(self.screenPosX), int(self.screenPosY)
-                level.change_layer(self, self.rect.bottom)
-                self.set_spritePos()
-                self.posX = int(self.screenPosX / SPRITE_SIZE + 0.5)
-                self.posY = int(self.screenPosY / SPRITE_SIZE + 0.5)
-
-            self.image = self.sprites[self.spriteDir][self.spritePos]
-            
-
-    def set_spriteDir(self):
+    # Set a new sprite direction depending on the player's direction
+    # Met une nouvelle direction selon la direction du joueur
+    def setSpriteDir(self):
 
         if self.direction == DOWN:
+            
             self.spriteDir = 0
+            
         if self.direction == UP:
+            
             self.spriteDir = 2
+            
         if self.direction == RIGHT:
+            
             self.spriteDir = 1
+            
         if self.direction == LEFT:
+            
             self.spriteDir = 3
             
-        
-    def set_spritePos(self):
+    # Update the animation position depending on player's direction and position on the screen
+    # Met à jour la position dans l'animation selon la direction du joueur et sa position sur l'écran
+    def setSpritePos(self):
 
         if self.moving:
 
-            position = self.rect.bottomleft
-            
-            if self.direction == DOWN:
-                if position[1]%16 < 6:
-                    self.spritePos = 2
-                elif position[1]%8 < 6:
-                    self.spritePos = 1    
-                else:                    
-                    self.spritePos = 0
+            # If the player move up or down, we take into account the bottom of the sprite, else we take the left side
+            # Si le joueur bouge vers le haut ou le bas, on prend en compte le bas du sprite, sinon on prend le côté gauche
+            if self.direction == DOWN or self.direction == UP:
+
+                position = self.rect.bottom
+
+            else:
+
+                position = self.rect.left
+
+            # It is difficult to explain, a drawing would be better, but at the beginning, the end, and right in the middle, we set to animation 0
+            #   Else, if we are not at one of these position, whether it's at the left or right we put animation 1 or 2
+            # C'est difficile à expliquer, un dessin serait plus parlant, mais au début, pile au milieu et la fin du déplacement, on met l'animation 0
+            #   Sinon, si l'on est pas à l'une de ces position, selon  si c'est à gauche ou à droite ou met l'animation 1 ou 2
+            if position%16 < 7 and position%16 > 0:
                     
-            elif self.direction == UP:
-                if position[1]%16 > 10:
-                    self.spritePos = 2
-                elif position[1]%8 > 2:
-                    self.spritePos = 1                    
-                else:                    
-                    self.spritePos = 0
+                self.spritePos = 2
                     
-            elif self.direction == LEFT:
-                if position[0]%16 < 6:
-                    self.spritePos = 2
-                elif position[0]%8 < 6:
-                    self.spritePos = 1                    
-                else:
-                    self.spritePos = 0
+            elif position%8 < 7 and position%16 > 0:
                     
-            elif self.direction == RIGHT:
-                if position[0]%16 > 10:
-                    self.spritePos = 2
-                elif position[0]%8 > 2:
-                    self.spritePos = 1                    
-                else:                    
-                    self.spritePos = 0
+                self.spritePos = 1
                     
+            else:
+                    
+                self.spritePos = 0
+
+        # If we don't move, we put back the animation 0
+        # Si l'on ne bouge pas on remet l'animation 0      
         else:
             
             self.spritePos = 0
 
-        
-
-
-    def get_offset(self):
+    # Return a little offset used to drop bombs ahead of the player
+    # Retourne un petit décalage utilisé pour poser des bombes juste devant le joueur
+    def getOffset(self):
 
         if self.direction == DOWN:
 
