@@ -397,24 +397,35 @@ class Breakable(pygame.sprite.DirtySprite):
 # Un bonus d'un type spécifique, avec une animation
 class Bonus(pygame.sprite.DirtySprite):
 
-    sprites = [[None for i in range(2)] for i in range(3)]
-
     # See Explosion()
     # Cf. Explosion()
     names = ["BombBonus", "PowerBonus", "SpeedBonus"]
+    
+    sprites = []
     
     # The constructor of the class which allow us to create an instance of bonus
     # Le constructeur de la classe qui permet de créer une instance de bonus
     def __init__(self, posX, posY, bonusType):
 
-
-        if Bonus.sprites[0][0] == None:
+        if len(Bonus.sprites) == 0:
 
             for nameNum, name in enumerate(Bonus.names):
 
+                nameSprites = []
+
                 for animPos in range(2):
 
-                    Bonus.sprites[nameNum][animPos] = pygame.image.load(os.path.join("Pictures", "Bonus", name + str(animPos) + ".png")).convert()
+                    nameSprites.append(pygame.image.load(os.path.join("Pictures", "Bonus", name + str(animPos) + ".png")).convert())
+
+                Bonus.sprites.append(nameSprites)
+
+            dustSprites = []
+
+            for animPos in range(5):
+
+                dustSprites.append(pygame.image.load(os.path.join("Pictures", "Dust", str(animPos) + ".png")).convert_alpha())
+
+            Bonus.sprites.append(dustSprites)
 
             Bonus.sound = pygame.mixer.Sound(os.path.join("Sounds", "Bonus.wav"))
                     
@@ -432,20 +443,34 @@ class Bonus(pygame.sprite.DirtySprite):
         self.animPos = 0
         self.image = self.sprites[self.type][self.animPos]
         self.lastTime = time.time()
+        self.explode = False
         
     # See Bomb()
     # Cf. Bomb()
     def update(self, level, currentTime):
 
-        if currentTime - self.lastTime > 0.25:
+        if not self.explode and currentTime - self.lastTime > 0.25:
 
             # If animPos == 1, then animPos = 1 - 1 = 0. If animPos == 0, then animPos = 1 - 0 = 1
             # Si animPos == 1, alors animPos = 1 - 1 = 0. Si animPos == 0, alors animPos = 1 - 0 = 1            
             self.animPos = 1 - self.animPos
-                
+                    
             self.lastTime = currentTime
             self.image = self.sprites[self.type][self.animPos]
             self.dirty = 1
+
+        elif self.explode and currentTime - self.lastTime > 0.05:
+
+            if self.animPos < 5:
+
+                self.image = self.sprites[len(self.sprites) - 1][self.animPos]
+                self.animPos += 1
+                self.lastTime = currentTime
+                self.dirty = 1
+
+            else:         
+
+                self.kill()
 
     # Put Ground() in place, erase from the group and return the bonus type
     # Met un Ground() à la place, efface du groupe et retourne le type de bonus
@@ -454,8 +479,9 @@ class Bonus(pygame.sprite.DirtySprite):
         # TODO: Destroy animation
 
         level.itemTable[self.posX][self.posY] = Ground()
-        self.kill()
-        self.sound.play()
+        self.animPos = 0
+        self.explode = True
+        self.dirty = 2
 
         return(self.type)
     
@@ -498,6 +524,14 @@ class Player(pygame.sprite.DirtySprite):
                 spriteLine.append(pygame.image.load(os.path.join("Pictures", "Players", "Player " + str(self.num), str(direction) + str(animPos) + ".png")).convert_alpha())
                 
             self.sprites.append(spriteLine)
+
+        spritesDeath = []
+
+        for animPos in range(9):
+
+            spritesDeath.append(pygame.image.load(os.path.join("Pictures", "Players", "Player " + str(self.num), "4" + str(animPos) + ".png")).convert_alpha())
+
+        self.sprites.append(spritesDeath)
                                
         self.direction = DOWN
         self.spriteDir = 0
@@ -514,10 +548,11 @@ class Player(pygame.sprite.DirtySprite):
         self.rect.bottomleft =(self.screenPosX, self.screenPosY)
         self.alive = True
         self.dirty = 2
+        self.lastTime = time.time()
         
     # Update the player's sprite, react to keys pressed, check death... once per frame because dirty = 2
     # Mise à jour du sprite du joueur, réaction au touches pressées, vérifier la mort... Une fois par tour de boucle dejeu car dirty = 2
-    def update(self, level, time):
+    def update(self, level, currentTime):
 
         # If the player is alive...
         # Si le joueur est vivant...
@@ -584,12 +619,18 @@ class Player(pygame.sprite.DirtySprite):
                 
         # ...And if he's dead
         # ...Et s'il est mort
-        else:
+        elif currentTime - self.lastTime > 0.05:
 
-            self.kill()
-            # TODO: Play death anim
-            pass
-            
+            if self.animPos < 9:
+
+                self.image = self.sprites[4][self.animPos]
+                self.animPos += 1
+                self.lastTime = currentTime
+
+            else:         
+
+                self.kill()
+                
     # Check events determined by what's in the box
     # Vérifie des évènement déterminés par ce qu'il y a dans la case
     def checkBox(self, level):
@@ -597,6 +638,8 @@ class Player(pygame.sprite.DirtySprite):
         box = level.itemTable[self.posX][self.posY]
 
         if box.item == BONUS:
+
+            Bonus.sound.play()
 
             # On destroy, the bonus return is type
             # A la destuction, le bonus retourne son type
@@ -618,10 +661,11 @@ class Player(pygame.sprite.DirtySprite):
 
         # If there is an explosion, then you're dead!
         # S'il y a une explosion, vous êtes mort!
-        elif box.item == EXPLOSION and self.num == 0:
+        elif box.item == EXPLOSION:
 
             self.alive = False
             self.deathSound.play()
+            self.animPos = 0
 
     # Drop a bomb if possible
     # Pose une bombe s'il le peut
