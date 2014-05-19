@@ -14,8 +14,8 @@ import pygame, sys, os, time, random
 from pygame.locals import *
 from config import *
 
-# All objects classes are pygame.sprite.DirtySprite sprites, unless Bombers and Level which are pygame.sprite.LayeredDirty sprites groups
-# Toutes les classes d'objets sont des sprites pygame.sprites.DirtySprite, sauf Bombers et Level qui sont des groupes de sprites pygame.sprite.LayeredDirty
+# All objects classes are pygame.sprite.Sprite sprites, unless Level which is pygame.sprite.LayeredDirty sprites groups
+# Toutes les classes d'objets sont des sprites pygame.sprites.Sprite, sauf Level qui est un groupe de sprites pygame.sprite.LayeredDirty
 
 
 # An empty object, just to know if a place is empty
@@ -27,20 +27,43 @@ class Ground():
 
 # Same thing as Ground(), but for something indestructible
 # Même chose que pour Ground(), mais pour quelque chose d'indestructible
-class Wall():
+class Wall(pygame.sprite.DirtySprite):
 
     item = WALL
+    
+    sprite = None
 
+    def __init__(self, posX, posY, spriteSetPath):
+        
+        pygame.sprite.DirtySprite.__init__(self)
+
+        if Wall.sprite == None:
+
+            Wall.sprite = pygame.image.load(os.path.join(spriteSetPath, "Wall.png"))
+
+        self.posX = posX
+        self.posY = posY
+        self.image = Wall.sprite
+        self.rect = self.image.get_rect()
+        self.rect.bottomleft = (SPRITE_SIZE*self.posX + X_OFFSET, SPRITE_SIZE*(self.posY+1) + Y_OFFSET)
 
 # A bomb with his sprites, sound, and a timeout
 # Une bombe avec ses sprites, sons et un compte à rebours
 class Bomb(pygame.sprite.DirtySprite):
 
-    sprites = [None for i in range(3)]
+    item = BOMB
+    
+    # This will allow us to know what kind of item it is
+    # Cela va nous permettre de savoir quel type d'objet sera cet objet    
+    sprites = [None for animPos in range(3)]
 
     # The constructor of the class which allow us to create an instance of bomb 
     # Le constructeur de la classe qui permet de créer une instance de bombe
-    def __init__(self, player):
+    def __init__(self, bombX, bombY, playerNum, playerPower):
+
+        # We call the Sprites constructor to get the specifics methods and attributes    
+        # On appelle le constucteur des Sprites pour bénéficier des méthodes et des attibuts spécifiques
+        pygame.sprite.DirtySprite.__init__(self)
 
         # If it's the first time we create a bomb, then load the sound and the sprites
         #   We must do that to load them once in the class and not in each instance, which save memory and time
@@ -52,39 +75,31 @@ class Bomb(pygame.sprite.DirtySprite):
 
             Bomb.sound = pygame.mixer.Sound(os.path.join("Sounds", "Bomb.wav"))
 
-            for animPos in range(3):
+            for animPos in range(len(Bomb.sprites)):
 
                 Bomb.sprites[animPos] = pygame.image.load(os.path.join("Pictures", "Bombs", "Bomb" + str(animPos) + ".png")).convert_alpha()
 
-        # We call the DirtySprites constructor to get the specifics methods and attributes    
-        # On appelle le constucteur des DirtySprites pour bénéficier des méthodes et des attibuts spécifiques
-        pygame.sprite.DirtySprite.__init__(self)
-
-        # This will allow us to know what kind of item it is
-        # Cela va nous permettre de savoir quel type d'objet sera cet objet
-        self.item = BOMB
-
-        self.posX = player.posX
-        self.posY = player.posY
-        self.player = player.num
-        self.power = player.power
-        # The rect is the rectangle, the coordinate of the surface of the image we must draw on the screen
-        #   It will be returned if the DirtySprites' draw method is called and if the sprite is dirty, i.e need to be redrawn
-        # Le rect est le rectangle, les coordonnées de la surface de l'image que l'on doit afficher sur l'écran
-        #   Il sera retouré par la méthode draw des DirtySprites si celle-ci est appellée et que le sprite est dirty, càd a besoin d'être réaffiché
-        self.rect = self.sprites[0].get_rect()
-        self.rect.bottomleft =(SPRITE_SIZE*self.posX, SPRITE_SIZE*(self.posY+1))
-        # This is the image we need to draw. It will be used by the DirtySprites draw method
-        # Cette image est celle que nous devons afficher. Elle sera utilisée par la méthode draw des DirtySprites
-        self.image = self.sprites[0]
-        # The timeout of the bomb is the moment when it have to explode, so the current time plus the general BOMB_TIMEOUT
-        # Le compte à rebours est lorsque la bombe doit exploser, et il est fini après le tempsa actuel plus le BOMB_TIMEOUT general
-        self.timeOut = time.time() + BOMB_TIMEOUT
+        self.posX = bombX
+        self.posY = bombY
         self.animPos = 0
         self.animDir = 1
+        # This is the image we need to draw. It will be used by the Sprites draw method
+        # Cette image est celle que nous devons afficher. Elle sera utilisée par la méthode draw des Sprites
+        self.image = self.sprites[self.animPos]
+        # The rect is the rectangle, the coordinate of the surface of the image we must draw on the screen
+        #   It will be returned if the Sprites' draw method is called
+        # Le rect est le rectangle, les coordonnées de la surface de l'image que l'on doit afficher sur l'écran
+        #   Il sera retouré par la méthode draw des Sprites si celle-ci est appellée
+        self.rect = self.image.get_rect()
+        self.rect.bottomleft = (SPRITE_SIZE*self.posX + X_OFFSET, SPRITE_SIZE*(self.posY+1) + Y_OFFSET)
+        self.player = playerNum
+        self.power = playerPower
         # This will be used to know when the object was last updated
         # Cela sera utiliser pour savoir quand l'objet a été dernièrement mis à jour
         self.lastTime = time.time()
+        # The timeout of the bomb is the moment when it have to explode, so the current time plus the general BOMB_TIMEOUT
+        # Le compte à rebours est lorsque la bombe doit exploser, et il est fini après le tempsa actuel plus le BOMB_TIMEOUT general
+        self.timeOut = self.lastTime + BOMB_TIMEOUT
 
     # This method update the sprite if he has to be. It is called by the Group update method
     # Cette méthode met à jour le sprite si besoin est. Elle est appelée par la méthode update du groupe
@@ -118,9 +133,7 @@ class Bomb(pygame.sprite.DirtySprite):
             # Update the image
             # Mettre à jour l'image
             self.image = self.sprites[self.animPos]
-            # The sprite need to be redrawn
-            # Le sprite doit être réaffiché
-            self.dirty = 1
+            self.dirty = 1 
             # The sprite was just updated
             # Le sprite viens d'être mis à jour
             self.lastTime = currentTime
@@ -129,14 +142,19 @@ class Bomb(pygame.sprite.DirtySprite):
     # ette méthode est appelée lorsque la bombe explose
     def destroy(self, level, fromDir = None):
 
+        # Erase the bomb from the group
+        # Effacer la bombe du groupe
         self.kill()
         self.sound.play()
+        # Update the player's current droped boms
+        # Met à jour le nombre de bombes actuellement posées pas le joueur
         level.players[self.player].bombs -= 1
+        
         # In place of the bomb, put a CENTER explosion and add it to the group
         # A la place de la bombe, mettre une explosion de type CENTER et l'ajouter au groupe
         explosion = Explosion(self.posX, self.posY, CENTER)
         level.itemTable[self.posX][self.posY] = explosion
-        level.add(explosion, layer = level.height - self.posY)
+        level.add(explosion)
         
         for direction in DIRECTIONS:
 
@@ -146,12 +164,12 @@ class Bomb(pygame.sprite.DirtySprite):
 
                 # For each distance from the bomb in the bomb explosion range
                 # Pour chaque distance à la bombe dans le rayon d'explosion de la bombe
-                for distance in range(1, self.power):
+                for distance in range(self.power):
 
                     # The coordinate of the case are these, and we get the item type that's in this case
                     # Les coordonnées de la case sont celles-ci, et on prend le type d'objet que l'on a dans cette case
-                    newX = self.posX + direction[0]*distance
-                    newY = self.posY + direction[1]*distance
+                    newX = self.posX + direction[0]*(distance+1)
+                    newY = self.posY + direction[1]*(distance+1)
                     item = level.itemTable[newX][newY].item
 
                     # If there is nothing, then we will put an explosion in place, but which one?
@@ -167,13 +185,21 @@ class Bomb(pygame.sprite.DirtySprite):
                         # S'il n'y a rien ou une bombe, on va mettre une explosion en tube
                         if (nextItem == NOTHING or nextItem == BOMB) and distance < self.power - 1:
                             
-                            if direction == UP or direction == DOWN:
+                            if direction == UP:
                                 
-                                explosionType = TUBEVERT
+                                explosionType = TUBEUP
                                 
+                            elif direction == DOWN:
+                                
+                                explosionType = TUBEDOWN
+                                
+                            elif direction == LEFT:
+                                
+                                explosionType = TUBELEFT
+
                             else:
                                 
-                                explosionType = TUBEHOR
+                                explosionType = TUBERIGHT
 
                         # Else, if there is something, we will put a end of explosion
                         # Sinon s'il y a quelque chose, on va mettre une fin d'explosion
@@ -199,7 +225,7 @@ class Bomb(pygame.sprite.DirtySprite):
                         # On met le bon type d'explosion et on continue de vérifier dans la même direction                            
                         explosion = Explosion(newX, newY, explosionType)
                         level.itemTable[newX][newY] = explosion
-                        level.add(explosion, layer = level.height - self.posY)
+                        level.add(explosion)
 
                     # If there is a breakable wall or a bonus, it explode. Break and try another direction
                     # Si il y a un mur cassable ou un bonus, il explose. Finir et essayer une autre direction                    
@@ -212,8 +238,8 @@ class Bomb(pygame.sprite.DirtySprite):
                     # S'il y a une bombe, elle explose aussi, et on passe la direction d'où vient l'explosion. Finir et essayer une autre direction                  
                     elif item == BOMB:
                         
-                        newFromDir = (-direction[0], -direction[1])
-                        level.itemTable[newX][newY].destroy(level, newFromDir)
+                        nextFromDir = (-direction[0], -direction[1])
+                        level.itemTable[newX][newY].destroy(level, nextFromDir)
                         break
 
                     # Else, if it is an unbreakable wall, try another direction
@@ -222,69 +248,55 @@ class Bomb(pygame.sprite.DirtySprite):
                         
                         break
                     
-        # Erase the bomb from the group
-        # Effacer la bombe du groupe
-        self.kill()
 
 # Explosion of a specific type, with an animation
 # Une explosion d'un type spécifique, avec une animation
 class Explosion(pygame.sprite.DirtySprite):
 
-    sprites = [[None for i in range(5)]for j in range(7)]
+    item = EXPLOSION
 
     # Names of the images to load
     # Noms des images à charger
     names = ["Center", "Tube", "End"]
 
-    
+    sprites = [[None for animPos in range(4)] for explosionType in range(9)]
+
     # The constructor of the class which allow us to create an instance of explosion
     # Le constructeur de la classe qui permet de créer une instance de explosion
     def __init__(self, posX, posY, explosionType):
-
-        # See Bomb()
-        # Cf. Bomb()        
-        if Explosion.sprites[0][0] == None:
-           
-            for animPos in range(5):
-
-                for name in Explosion.names:
-
-                    sprite = pygame.image.load(os.path.join("Pictures", "Explosions", name + str(animPos) + ".png")).convert_alpha()
-
-                    if name == "Center":
-
-                        Explosion.sprites[0][animPos] = sprite
-
-                    elif name == "Tube":
-
-                        Explosion.sprites[1][animPos] = sprite
-                        # Rotate the sprite to get an horizontal tube
-                        # Faire pivoter pour obtenir un tube horizontal
-                        Explosion.sprites[2][animPos] = pygame.transform.rotate(sprite, 90)
-
-                    elif name == "End":
-
-                        Explosion.sprites[3][animPos] = sprite
-                        # Rotate the sprite to get the others directions' ends
-                        # Faire pivoter pour obtenir les fin des autre direction
-                        Explosion.sprites[4][animPos] = pygame.transform.rotate(sprite, 90)
-                        Explosion.sprites[5][animPos] = pygame.transform.rotate(sprite, 180)
-                        Explosion.sprites[6][animPos] = pygame.transform.rotate(sprite, 270)
                         
         # See Bomb()
         # Cf. Bomb()    
         pygame.sprite.DirtySprite.__init__(self)
+        
+        # See Bomb()
+        # Cf. Bomb()        
+        if Explosion.sprites[0][0] == None:
+           
+            for animPos in range(len(Explosion.sprites[0])):
 
-        self.item = EXPLOSION
+                for nameNum, name in enumerate(Explosion.names):
+
+                    sprite = pygame.image.load(os.path.join("Pictures", "Explosions", name + str(animPos) + ".png")).convert_alpha()
+
+                    Explosion.sprites[nameNum][animPos] = sprite
+
+                    if nameNum != 0:
+                        
+                        # Rotate the sprite to get the others directions
+                        # Faire pivoter pour obtenir les autres directions
+                        Explosion.sprites[nameNum + 2][animPos] = pygame.transform.rotate(sprite, 90)
+                        Explosion.sprites[nameNum + 4][animPos] = pygame.transform.rotate(sprite, 180)
+                        Explosion.sprites[nameNum + 6][animPos] = pygame.transform.rotate(sprite, 270)
 
         self.posX = posX
         self.posY = posY
-        self.rect = self.sprites[0][0].get_rect()
-        self.rect.bottomleft =(SPRITE_SIZE*self.posX, SPRITE_SIZE*(self.posY+1))
-        self.type = explosionType
         self.animPos = 0
         self.animDir = 1
+        self.type = explosionType
         self.image = self.sprites[self.type][self.animPos]
+        self.rect = self.image.get_rect()
+        self.rect.bottomleft = (SPRITE_SIZE*self.posX + X_OFFSET, SPRITE_SIZE*(self.posY+1) + Y_OFFSET)
         self.lastTime = time.time()
         
     # See Bomb()
@@ -305,22 +317,25 @@ class Explosion(pygame.sprite.DirtySprite):
 
                 # If we are at the last sprite number, change animation direction
                 # Si on est au dernier numéro de sprite, changer la direction de l'animation
-                if self.animPos == 4:
+                if self.animPos == len(self.sprites[0]) - 1:
                     
                     self.animDir = -1
                     
                 # See Bomb()
                 # Cf. Bomb()
                 self.animPos += self.animDir
-                self.image = self.sprites[self.type][self.animPos]                
-                self.lastTime = currentTime
+                self.image = self.sprites[self.type][self.animPos]
                 self.dirty = 1
+                self.lastTime = currentTime
+
                 
 # Breakable wall with an explosion animation
 # Un mur cassable avec une animation d'explosion
 class Breakable(pygame.sprite.DirtySprite):
 
-    sprites = [None for i in range(7)]
+    item = BREAKABLE
+
+    sprites = [None for animPos in range(8)]
     
     # The constructor of the class which allow us to create an instance of breakable wall
     # Le constructeur de la classe qui permet de créer une instance de mur cassable
@@ -328,25 +343,23 @@ class Breakable(pygame.sprite.DirtySprite):
         
         # See Bomb()
         # Cf. Bomb()
-        if Breakable.sprites[0] == None:
-
-            for i in range(7):
-
-                Breakable.sprites[i] = pygame.image.load(os.path.join(spriteSetPath, "Breakable" + str(i) + ".png")).convert_alpha()
-                
+        pygame.sprite.DirtySprite.__init__(self)
+        
         # See Bomb()
         # Cf. Bomb()
-        pygame.sprite.DirtySprite.__init__(self)
+        if Breakable.sprites[0] == None:
 
-        self.item = BREAKABLE
+            for animPos in range(len(Breakable.sprites)):
+
+                Breakable.sprites[animPos] = pygame.image.load(os.path.join(spriteSetPath, "Breakable" + str(animPos) + ".png")).convert_alpha()
 
         self.posX = posX
         self.posY = posY
-        self.rect = Breakable.sprites[0].get_rect()
-        self.rect.bottomleft =(SPRITE_SIZE*self.posX, SPRITE_SIZE*(self.posY+1))
         self.animPos = 0
         self.image = self.sprites[self.animPos]
-        self.explode = 0
+        self.rect = self.image.get_rect()
+        self.rect.bottomleft = (SPRITE_SIZE*self.posX + X_OFFSET, SPRITE_SIZE*(self.posY+1) + Y_OFFSET)
+        self.explode = False
         self.lastTime = time.time()
         
     # See Bomb()
@@ -356,121 +369,113 @@ class Breakable(pygame.sprite.DirtySprite):
         # If the sprite was updated more than 0.05s ago and the wall is exploding
         # Si le sprite a été mis à jour il y a plus de 0,05s and que le mur est en train d'exploser
         if currentTime - self.lastTime > 0.05 and self.explode:
-
-            # See Bomb()
-            # Cf. Bomb()
-            self.animPos += 1
-
+            
             #If the animation is over
             # Si l'animation est terminée
-            if self.animPos > 6:
+            if self.animPos == len(self.sprites) - 1:
                 
                 self.kill()
                 
             else:
-
-                self.lastTime = currentTime
-                self.image = self.sprites[self.animPos]
                 
-            self.dirty = 1
+                # See Bomb()
+                # Cf. Bomb()
+                self.animPos += 1
+                self.image = self.sprites[self.animPos]
+                self.dirty = 1
+                self.lastTime = currentTime
 
     # This method init the destuction of the wall and drop a bonus randomly
     # Cette méthode initialise la destruction du mur et pose un bonus aléatoirement
     def destroy(self, level):
         
+        self.explode = True
         bonusRandom = random.randrange(15)
         
         if bonusRandom < 3:
             
             bonus = Bonus(self.posX, self.posY, bonusRandom)
             level.itemTable[self.posX][self.posY] = bonus
-            level.add(bonus, layer = level.height - self.posY - 1)
+            level.add(bonus)
             
         else:
             
             level.itemTable[self.posX][self.posY] = Ground()
-            
-        self.explode = 1
-        self.dirty = 1
         
 # Bonus of a specific type, with an animation
 # Un bonus d'un type spécifique, avec une animation
 class Bonus(pygame.sprite.DirtySprite):
 
+    item = BONUS
+    
     # See Explosion()
     # Cf. Explosion()
     names = ["BombBonus", "PowerBonus", "SpeedBonus"]
-    
-    sprites = []
+
+    sprites = [[None for animPos in range(2)] for bonusType in range(len(names))]
+
+    dustSprites = [None for animPos in range(5)]
     
     # The constructor of the class which allow us to create an instance of bonus
     # Le constructeur de la classe qui permet de créer une instance de bonus
     def __init__(self, posX, posY, bonusType):
-
-        if len(Bonus.sprites) == 0:
-
-            for nameNum, name in enumerate(Bonus.names):
-
-                nameSprites = []
-
-                for animPos in range(2):
-
-                    nameSprites.append(pygame.image.load(os.path.join("Pictures", "Bonus", name + str(animPos) + ".png")).convert())
-
-                Bonus.sprites.append(nameSprites)
-
-            dustSprites = []
-
-            for animPos in range(5):
-
-                dustSprites.append(pygame.image.load(os.path.join("Pictures", "Dust", str(animPos) + ".png")).convert_alpha())
-
-            Bonus.sprites.append(dustSprites)
-
-            Bonus.sound = pygame.mixer.Sound(os.path.join("Sounds", "Bonus.wav"))
                     
         # See Bomb()
         # Cf. Bomb()
         pygame.sprite.DirtySprite.__init__(self)
+        
+        if Bonus.sprites[0][0] == None:
 
-        self.item = BONUS
+            Bonus.sound = pygame.mixer.Sound(os.path.join("Sounds", "Bonus.wav"))
+            
+            for nameNum, name in enumerate(Bonus.names):
 
+                for animPos in range(len(Bonus.sprites[0])):
+
+                    Bonus.sprites[nameNum][animPos] = pygame.image.load(os.path.join("Pictures", "Bonus", name + str(animPos) + ".png")).convert()
+
+            for animPos in range(len(Bonus.dustSprites)):
+
+                Bonus.dustSprites[animPos] = pygame.image.load(os.path.join("Pictures", "Dust", str(animPos) + ".png")).convert_alpha()
+                
         self.posX = posX
         self.posY = posY
-        self.rect = Bonus.sprites[0][0].get_rect()
-        self.rect.bottomleft =(SPRITE_SIZE*self.posX, SPRITE_SIZE*(self.posY+1))
-        self.type = bonusType
         self.animPos = 0
+        self.type = bonusType
         self.image = self.sprites[self.type][self.animPos]
-        self.lastTime = time.time()
+        self.rect = self.image.get_rect()
+        self.rect.bottomleft =(SPRITE_SIZE*self.posX + X_OFFSET, SPRITE_SIZE*(self.posY+1) + Y_OFFSET)
         self.explode = False
+        self.lastTime = time.time()
         
     # See Bomb()
     # Cf. Bomb()
     def update(self, level, currentTime):
 
-        if not self.explode and currentTime - self.lastTime > 0.25:
+        if self.explode and currentTime - self.lastTime > 0.05:
+
+            if self.animPos == len(self.dustSprites) - 1:
+
+                self.kill()
+
+            else:
+                
+                self.animPos += 1
+                self.image = self.dustSprites[self.animPos]
+                self.dirty = 1
+                self.lastTime = currentTime
+
+                
+                
+        elif not self.explode and currentTime - self.lastTime > 0.25:
 
             # If animPos == 1, then animPos = 1 - 1 = 0. If animPos == 0, then animPos = 1 - 0 = 1
             # Si animPos == 1, alors animPos = 1 - 1 = 0. Si animPos == 0, alors animPos = 1 - 0 = 1            
             self.animPos = 1 - self.animPos
-                    
-            self.lastTime = currentTime
             self.image = self.sprites[self.type][self.animPos]
             self.dirty = 1
+            self.lastTime = currentTime
 
-        elif self.explode and currentTime - self.lastTime > 0.05:
-
-            if self.animPos < 5:
-
-                self.image = self.sprites[len(self.sprites) - 1][self.animPos]
-                self.animPos += 1
-                self.lastTime = currentTime
-                self.dirty = 1
-
-            else:         
-
-                self.kill()
 
     # Put Ground() in place, erase from the group and return the bonus type
     # Met un Ground() à la place, efface du groupe et retourne le type de bonus
@@ -479,9 +484,8 @@ class Bonus(pygame.sprite.DirtySprite):
         # TODO: Destroy animation
 
         level.itemTable[self.posX][self.posY] = Ground()
-        self.animPos = 0
+        self.animPos = -1
         self.explode = True
-        self.dirty = 2
 
         return(self.type)
     
@@ -495,26 +499,27 @@ class Player(pygame.sprite.DirtySprite):
     # Le constructeur de la classe qui permet de créer un joueur
     def __init__(self, num, spawn, ia):
         
+
+        # See Bomb()
+        # Cf. Bomb()
+        pygame.sprite.DirtySprite.__init__(self)
+        
         # See Bomb()
         # Cf. Bomb()
         if Player.deathSound == None:
 
             Player.deathSound = pygame.mixer.Sound(os.path.join("Sounds", "Death.wav"))
 
-        # See Bomb()
-        # Cf. Bomb()
-        pygame.sprite.DirtySprite.__init__(self)
-
         # Differents caracteristics and images of the player
         # Différentes caractéristiques et images du joueur
         self.num = num
         self.ia = ia
-        self.speed = SPEED_INIT
-        self.bombsMax = BOMBSMAX_INIT
         self.bombs = 0
+        self.bombsMax = BOMBSMAX_INIT
         self.power = POWER_INIT
-        self.sprites = []
+        self.speed = SPEED_INIT
         
+        self.sprites = []
         for direction in range(4):
             
             spriteLine = []
@@ -532,26 +537,23 @@ class Player(pygame.sprite.DirtySprite):
             spritesDeath.append(pygame.image.load(os.path.join("Pictures", "Players", "Player " + str(self.num), "4" + str(animPos) + ".png")).convert_alpha())
 
         self.sprites.append(spritesDeath)
-                               
+        
+        self.posX = spawn[0]
+        self.posY = spawn[1]        
         self.direction = DOWN
         self.spriteDir = 0
         self.spritePos = 0
-        self.moving = False
-        # Pos represent the table coordinates and screenPos and lastScreenPos the screen coordinates
-        # Pos représente les coordonnées du tableau et screenPos et lastScreenPos les coordonnées sur l'écran
-        self.posX = spawn[0]
-        self.posY = spawn[1]
-        self.screenPosX = float(SPRITE_SIZE*self.posX)
-        self.screenPosY = float(SPRITE_SIZE*(self.posY+1))
         self.image = self.sprites[self.spriteDir][self.spritePos]
         self.rect = self.image.get_rect()
+        self.screenPosX = float(SPRITE_SIZE*self.posX + X_OFFSET)
+        self.screenPosY = float(SPRITE_SIZE*(self.posY+1) + Y_OFFSET)
         self.rect.bottomleft =(self.screenPosX, self.screenPosY)
         self.alive = True
-        self.dirty = 2
+        self.moving = False
         self.lastTime = time.time()
         
-    # Update the player's sprite, react to keys pressed, check death... once per frame because dirty = 2
-    # Mise à jour du sprite du joueur, réaction au touches pressées, vérifier la mort... Une fois par tour de boucle dejeu car dirty = 2
+    # Update the player's sprite, react to keys pressed, check death... once per frame
+    # Mise à jour du sprite du joueur, réaction au touches pressées, vérifier la mort... Une fois par tour de boucle de jeu
     def update(self, level, currentTime):
 
         # If the player is alive...
@@ -577,13 +579,13 @@ class Player(pygame.sprite.DirtySprite):
                     self.screenPosX += float(self.direction[0]*self.speed)
                     self.screenPosY += float(self.direction[1]*self.speed)          
                     self.rect.bottomleft = int(self.screenPosX), int(self.screenPosY)
-                    # Change the layer, so the more the player is at the bottom, the more he will be on the top after the blitting
-                    # Change la profondeur, pour que les joueurs les plus en bas soient les plus en avant lors de l'affichage
-                    level.change_layer(self, self.rect.bottom)
                     # Update posX and posY to fit closer to the screen position
                     # Met à jour posX et posY pour correspondre au plus près à la position sur l'écran
                     self.posX = int(self.screenPosX / SPRITE_SIZE + 0.5)
                     self.posY = int(self.screenPosY / SPRITE_SIZE + 0.5) - 1
+                    # Change the layer, so the more the player is at the bottom, the more he will be on the top after the blitting
+                    # Change la profondeur, pour que les joueurs les plus en bas soient les plus en avant lors de l'affichage
+                    level.change_layer(self, self.rect.bottom)
                     self.setSpritePos()
 
                     # When we detect that we changed of box, we end the movement to be able to change direction
@@ -621,15 +623,16 @@ class Player(pygame.sprite.DirtySprite):
         # ...Et s'il est mort
         elif currentTime - self.lastTime > 0.05:
 
-            if self.animPos < 9:
-
-                self.image = self.sprites[4][self.animPos]
-                self.animPos += 1
-                self.lastTime = currentTime
-
-            else:         
+            if self.animPos == len(self.sprites[4]) - 1:
 
                 self.kill()
+                
+            else:
+
+                self.animPos += 1
+                self.image = self.sprites[4][self.animPos]
+                self.dirty = 1
+                self.lastTime = currentTime
                 
     # Check events determined by what's in the box
     # Vérifie des évènement déterminés par ce qu'il y a dans la case
@@ -665,7 +668,7 @@ class Player(pygame.sprite.DirtySprite):
 
             self.alive = False
             self.deathSound.play()
-            self.animPos = 0
+            self.animPos = -1
 
     # Drop a bomb if possible
     # Pose une bombe s'il le peut
@@ -675,8 +678,8 @@ class Player(pygame.sprite.DirtySprite):
         # Si le joueur appuye sur la touche pour poser une bombe, qu'il n'en a pas posé trop et que la case est libre, alors poser une bombe
         if keyPressed[KEYS[self.num][4]]:
             
-            bombX = int((self.screenPosX + self.getOffset()[0]) / SPRITE_SIZE)
-            bombY = int((self.screenPosY + self.getOffset()[1]) / SPRITE_SIZE)
+            #bombX = int((self.screenPosX + self.getOffset()[0]) / SPRITE_SIZE + 0.5)
+            #bombY = int((self.screenPosY + self.getOffset()[1]) / SPRITE_SIZE + 0.5)
             bombX = self.posX
             bombY = self.posY
             
@@ -684,8 +687,8 @@ class Player(pygame.sprite.DirtySprite):
                 
                 # Update the group sprites, the item table. Don't mind the layer, it will be used one day but is useless now
                 # Met à jour le groupe de sprite et le tableau d'objets. Ne faites pas attention au layer, il est inutile pour l'instant
-                bomb = Bomb(self)
-                level.add(bomb, layer = bombY)
+                bomb = Bomb(bombX, bombY, self.num, self.power)
+                level.add(bomb)
                 level.itemTable[bombX][bombY] = bomb
                 # Update bombs droped simultanously by the player
                 # Mise à jour le nombre de bombes posée simultanément par le joueur
@@ -872,8 +875,8 @@ class Level(pygame.sprite.LayeredDirty):
     # Le constructeur de la classe qui permet de créer une instance du niveau numéro numLevel
     def __init__(self, window, numLevel, numPlayers):
 
-        # We call LayeredDirty's constructor to get the specifics methods and attibutes
-        # On appelle le constructeur de LayeredDirty pour bénéficier des méthodes et attributs spécifiques
+        # We call LayeredUpdates's constructor to get the specifics methods and attibutes
+        # On appelle le constructeur de LayeredUpdates pour bénéficier des méthodes et attributs spécifiques
         pygame.sprite.LayeredDirty.__init__(self)
 
         # We open the level's file and we extract useful infos
@@ -916,12 +919,13 @@ class Level(pygame.sprite.LayeredDirty):
 
                     elif itemType == 5:
 
-                        newItem = Wall()
+                        newItem = Wall(j, i, self.spriteSetPath)
+                        self.add(newItem, layer = newItem.rect.bottom)
 
                     elif itemType == 4:
 
                         newItem = Breakable(j, i, self.spriteSetPath)
-                        self.add(newItem, layer = self.height - i)
+                        self.add(newItem, layer = newItem.rect.bottom)
                                                 
                     self.itemTable[j][i] = newItem
 
@@ -933,20 +937,14 @@ class Level(pygame.sprite.LayeredDirty):
             
             for x in range(self.width):
                 
-                if self.itemTable[x][y].item == WALL:
-                    
-                    window.blit(self.wallSprite, (SPRITE_SIZE*x, SPRITE_SIZE*y))
-                    
-                else:
-                    
-                    window.blit(self.groundSprite, (SPRITE_SIZE*x, SPRITE_SIZE*y))
+                window.blit(self.groundSprite, (SPRITE_SIZE*x, SPRITE_SIZE*y))
                                         
         # Once done, we save it in an image, and set it as background of the sprite's group
         # Une fois cela fait, on le sauvegarde dans une mage et on le définit comme fond du group de sprite
         pygame.image.save(window, os.path.join("Levels", "Level " + str(numLevel) + ".png"))
         self.background = pygame.image.load(os.path.join("Levels", "Level " + str(numLevel) + ".png")).convert()
         self.clear(window, self.background)
-
+        
         # Let's create the players! They will be stored in this list
         # Créons maintenant les joueurs! Il seront stockés dans cette liste
         self.numPlayers = numPlayers
